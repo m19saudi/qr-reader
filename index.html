@@ -45,16 +45,20 @@ header {
   display: flex;
   flex-direction: column;
   gap: 1.2rem;
+  align-items: center;
+  justify-content: center;
   transition: all 0.6s ease;
 }
 
 /* Left panel columns after scan */
 #content.columns {
   flex-direction: row;
+  justify-content: flex-start;
+  align-items: stretch;
   gap: 1rem;
 }
 
-/* Left panel columns child */
+/* Columns */
 .left-column, .right-column {
   flex: 1;
   display: flex;
@@ -84,6 +88,7 @@ header {
 #instructions {
   font-size: 1rem;
   color: #444;
+  text-align: center;
 }
 
 /* Error / Success */
@@ -155,12 +160,12 @@ button:hover, button:focus {
 #result-text { font-size:1rem; color:#222; word-break: break-word; white-space: pre-wrap; }
 #result-text a { color:#6a0dad; text-decoration: underline; }
 
-/* Responsive mobile: slide instead of stack */
+/* Responsive mobile: result slides in, left panel shrinks */
 @media (max-width:760px){
-  #container { flex-direction: row; width:100vw; overflow-x:hidden; }
+  #container.slid { transform: translateX(0); }
   #content.columns { flex-direction: row; gap:0.5rem; }
   #result-popup { position:absolute; right:0; top:0; height:100%; width:60%; max-width:280px; border-left:2px solid #6a0dad; z-index:10; }
-  #container.slid { transform: translateX(-60%); }
+  #content { flex:0.55; transition:flex 0.6s ease; }
 }
 </style>
 </head>
@@ -210,7 +215,7 @@ function showResult(text){
   if(!resultPopup.classList.contains('visible')){
     resultPopup.classList.add('visible');
     container.classList.add('slid');
-    content.classList.add('columns'); // split left panel into columns
+    content.classList.add('columns'); // split left panel into columns after first scan
   }
 }
 
@@ -267,17 +272,24 @@ fileDrop.addEventListener('keydown', e=>{if(e.key==='Enter'||e.key===' '){e.prev
 function decodeFile(file){
   errorMessage.textContent="Scanning image...";
   errorMessage.classList.remove('error','success');
-  if(cameraRunning) stopCamera();
+
+  // stop camera first if running
+  if(cameraRunning){
+    stopCamera().then(()=> scanFile(file));
+  } else scanFile(file);
+}
+
+function scanFile(file){
   const reader = new FileReader();
-  reader.onload=()=>{
-    if(!html5QrCode) html5QrCode=new Html5Qrcode("qr-reader");
+  reader.onload = ()=>{
+    if(!html5QrCode) html5QrCode = new Html5Qrcode("qr-reader");
     html5QrCode.scanFile(reader.result,true)
-    .then(result=>{
-      errorMessage.textContent="";
-      errorMessage.classList.add('success');
-      showResult(result);
-    })
-    .catch(()=>{errorMessage.textContent="No QR code found in the image."; errorMessage.classList.add('error');});
+      .then(result=>{
+        errorMessage.textContent="";
+        errorMessage.classList.add('success');
+        showResult(result);
+      })
+      .catch(()=>{ errorMessage.textContent="No QR code found in the image."; errorMessage.classList.add('error'); });
   };
   reader.readAsDataURL(file);
 }
