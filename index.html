@@ -1,97 +1,358 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Offline QR & Barcode Scanner</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>QuickScan - QR & Barcode Scanner</title>
+
+<!-- Library -->
+<script src="https://unpkg.com/html5-qrcode"></script>
+
 <style>
-  /* Reset and body */
-  body { margin:0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f7f9fc; color:#333; text-align:center; }
-  header { background:#4a90e2; color:white; padding:20px; font-size:1.6em; font-weight:bold; }
-  main { max-width:480px; margin: 20px auto; }
-  
-  /* Scanner container */
-  #reader { width: 100%; border: 2px solid #4a90e2; border-radius:10px; margin:0 auto; }
-  
-  /* Result box */
-  #result { background:white; border:1px solid #ccc; border-radius:8px; padding:10px 15px; margin-top:20px; font-size:1.1em; word-break:break-all; min-height:2em; }
-  
-  /* Buttons */
-  .btn { padding:10px 20px; margin:10px 5px; border:none; border-radius:5px; cursor:pointer; font-size:1em; color:white; background:#4a90e2; }
-  .btn:hover { background:#357ab8; }
-
-  /* File input styling */
-  input[type=file] { margin-top:10px; font-size:1em; }
-</style>
-</head>
-<body>
-<header>QR & Barcode Scanner</header>
-<main>
-  <div id="reader"></div>
-  <div id="result">Scan a QR code or barcode to see the result here.</div>
-  <input type="file" id="fileSelector" accept="image/*"><br>
-  <button class="btn" onclick="stopScanner()">Stop Scanner</button>
-  <button class="btn" onclick="restartScanner()">Restart Scanner</button>
-</main>
-
-<!-- Embedded html5-qrcode library -->
-<script src="html5-qrcode.min.js">
-  /* 
-  Paste the full minified html5-qrcode library here.
-  Download it from:
-  https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js
-  Then copy all of it between these <script> tags.
-*/
-</script>
-
-<script>
-const resultDiv = document.getElementById("result");
-const fileSelector = document.getElementById("fileSelector");
-let scanner;
-
-// Function to start the camera scanner
-function startScanner() {
-  scanner = new Html5Qrcode("reader");
-  Html5Qrcode.getCameras().then(cameras => {
-    if (cameras && cameras.length) {
-      scanner.start(
-        cameras[0].id,
-        { fps: 10, qrbox: 250 },
-        decodedText => { resultDiv.textContent = "Scanned: " + decodedText; },
-        error => { /* ignore minor scan errors */ }
-      ).catch(err => { resultDiv.textContent = "Error starting camera: " + err; });
-    } else {
-      resultDiv.textContent = "No camera devices found.";
-    }
-  }).catch(err => { resultDiv.textContent = "Camera access error: " + err; });
+:root {
+  --primary: #7b5cff;
+  --secondary: #a18aff;
+  --bg: #f6f7fb;
+  --text: #333;
+  --card: #ffffff;
 }
 
-// Stop camera scanning
-function stopScanner() {
-  if (scanner) {
-    scanner.stop().then(() => {
-      resultDiv.textContent = "Scanner stopped.";
-    }).catch(err => { resultDiv.textContent = "Failed to stop scanner: " + err; });
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Header */
+header {
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: white;
+  padding: 20px;
+  text-align: center;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+/* Layout */
+.container {
+  max-width: 1100px;
+  margin: 20px auto;
+  padding: 10px;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Camera */
+#reader {
+  flex: 1;
+  min-height: 320px;
+  position: relative;
+}
+
+/* Scanner overlay */
+.overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 70%;
+  height: 60%;
+  transform: translate(-50%, -50%);
+  border: 2px dashed rgba(255,255,255,0.7);
+  border-radius: 12px;
+}
+
+/* Controls */
+.controls {
+  width: 350px;
+  padding: 20px;
+  border-left: 1px solid #eee;
+}
+
+button {
+  background: var(--primary);
+  border: none;
+  color: white;
+  padding: 10px 15px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  background: #6a4ce0;
+}
+
+button.secondary {
+  background: #eee;
+  color: #333;
+}
+
+/* Upload */
+.upload {
+  border: 2px dashed #ccc;
+  padding: 20px;
+  border-radius: 12px;
+  text-align: center;
+  cursor: pointer;
+  margin-top: 15px;
+}
+
+.upload:hover {
+  border-color: var(--primary);
+}
+
+/* Result panel */
+.result-panel {
+  position: absolute;
+  right: -400px;
+  top: 0;
+  width: 350px;
+  height: 100%;
+  background: white;
+  box-shadow: -10px 0 20px rgba(0,0,0,0.1);
+  transition: 0.4s;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.result-panel.active {
+  right: 0;
+}
+
+.result {
+  margin-top: 10px;
+  word-break: break-all;
+}
+
+/* History */
+.history {
+  margin-top: 20px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.history div {
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+  font-size: 13px;
+}
+
+/* Status */
+.status {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #666;
+}
+
+/* Mobile */
+@media(max-width: 768px){
+  .card {
+    flex-direction: column;
+  }
+
+  .controls {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #eee;
+  }
+
+  .result-panel {
+    width: 100%;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<header>QuickScan - QR & Barcode Scanner</header>
+
+<div class="container">
+  <div class="card">
+
+    <!-- Camera -->
+    <div id="reader">
+      <div class="overlay"></div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <button id="startBtn">Start Camera</button>
+      <button id="stopBtn" class="secondary">Stop</button>
+      <button id="flashBtn" class="secondary">Flash</button>
+
+      <div class="upload" tabindex="0" id="uploadBox">
+        Drag & Drop or Click to Upload Image
+        <input type="file" id="fileInput" hidden>
+      </div>
+
+      <div class="status" id="status">Idle</div>
+
+      <div class="history" id="history"></div>
+    </div>
+
+    <!-- Result Panel -->
+    <div class="result-panel" id="resultPanel">
+      <h3>Scan Result</h3>
+      <div class="result" id="resultText"></div>
+      <button id="copyBtn">Copy</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let scanner = null;
+let isRunning = false;
+let historyList = [];
+let flashOn = false;
+
+const statusEl = document.getElementById("status");
+const resultPanel = document.getElementById("resultPanel");
+const resultText = document.getElementById("resultText");
+const historyEl = document.getElementById("history");
+
+/* Sound */
+const beep = new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
+
+/* Detect URL */
+function isURL(text) {
+  return /^https?:\/\//i.test(text);
+}
+
+/* Show result */
+function showResult(text) {
+  beep.play();
+
+  if (isURL(text)) {
+    resultText.innerHTML = `<a href="${text}" target="_blank">${text}</a>`;
+  } else {
+    resultText.textContent = text;
+  }
+
+  resultPanel.classList.add("active");
+
+  historyList.unshift(text);
+  renderHistory();
+}
+
+/* History */
+function renderHistory() {
+  historyEl.innerHTML = historyList
+    .slice(0, 10)
+    .map(item => `<div>${item}</div>`)
+    .join("");
+}
+
+/* Start camera */
+async function startScanner() {
+  if (isRunning) return;
+
+  try {
+    scanner = new Html5Qrcode("reader");
+
+    const devices = await Html5Qrcode.getCameras();
+    const backCamera = devices.find(d => d.label.toLowerCase().includes("back")) || devices[0];
+
+    await scanner.start(
+      backCamera.id,
+      { fps: 10, qrbox: 250 },
+      decoded => {
+        showResult(decoded);
+      }
+    );
+
+    isRunning = true;
+    statusEl.textContent = "Scanning...";
+  } catch (err) {
+    statusEl.textContent = "Camera error: " + err;
   }
 }
 
-// Restart scanner
-function restartScanner() {
-  stopScanner();
-  setTimeout(() => startScanner(), 500);
+/* Stop camera */
+async function stopScanner() {
+  if (!isRunning || !scanner) return;
+
+  await scanner.stop();
+  scanner.clear();
+  isRunning = false;
+  statusEl.textContent = "Stopped";
 }
 
-// File image scanning
-fileSelector.addEventListener("change", event => {
-  if (!event.target.files.length) return;
-  const file = event.target.files[0];
-  scanner.scanFile(file, true)
-    .then(decodedText => { resultDiv.textContent = "Image scanned: " + decodedText; })
-    .catch(err => { resultDiv.textContent = "Image scan failed: " + err; });
+/* Flash toggle */
+async function toggleFlash() {
+  if (!scanner) return;
+
+  try {
+    flashOn = !flashOn;
+    await scanner.applyVideoConstraints({
+      advanced: [{ torch: flashOn }]
+    });
+  } catch (e) {
+    alert("Flash not supported");
+  }
+}
+
+/* Upload scan */
+document.getElementById("fileInput").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  try {
+    const html5Qr = new Html5Qrcode("reader");
+    const result = await html5Qr.scanFile(file, true);
+    showResult(result);
+  } catch {
+    statusEl.textContent = "No QR code found in image";
+  }
 });
 
-// Initialize scanner on page load
-startScanner();
+/* Drag & drop */
+const uploadBox = document.getElementById("uploadBox");
+
+uploadBox.addEventListener("click", () => fileInput.click());
+uploadBox.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") fileInput.click();
+});
+
+uploadBox.addEventListener("dragover", e => e.preventDefault());
+
+uploadBox.addEventListener("drop", async (e) => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+
+  try {
+    const html5Qr = new Html5Qrcode("reader");
+    const result = await html5Qr.scanFile(file, true);
+    showResult(result);
+  } catch {
+    statusEl.textContent = "Invalid image";
+  }
+});
+
+/* Copy */
+document.getElementById("copyBtn").onclick = () => {
+  navigator.clipboard.writeText(resultText.innerText);
+};
+
+/* Buttons */
+document.getElementById("startBtn").onclick = startScanner;
+document.getElementById("stopBtn").onclick = stopScanner;
+document.getElementById("flashBtn").onclick = toggleFlash;
+
 </script>
+
 </body>
 </html>
