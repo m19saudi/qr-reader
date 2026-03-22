@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>QuickScan - QR & Barcode Scanner</title>
 
-<!-- Library -->
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
@@ -17,13 +16,10 @@
   --card: #ffffff;
 }
 
-* { box-sizing: border-box; }
-
 body {
   margin: 0;
   font-family: "Segoe UI", sans-serif;
   background: var(--bg);
-  color: var(--text);
 }
 
 /* Header */
@@ -32,7 +28,6 @@ header {
   color: white;
   padding: 20px;
   text-align: center;
-  font-size: 20px;
   font-weight: bold;
 }
 
@@ -44,22 +39,20 @@ header {
 }
 
 .card {
-  background: var(--card);
-  border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
   display: flex;
+  background: white;
+  border-radius: 16px;
   overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
   position: relative;
 }
 
-/* Camera */
 #reader {
   flex: 1;
   min-height: 320px;
   position: relative;
 }
 
-/* Scanner overlay */
 .overlay {
   position: absolute;
   top: 50%;
@@ -71,7 +64,6 @@ header {
   border-radius: 12px;
 }
 
-/* Controls */
 .controls {
   width: 350px;
   padding: 20px;
@@ -79,18 +71,15 @@ header {
 }
 
 button {
-  background: var(--primary);
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
   border: none;
-  color: white;
-  padding: 10px 15px;
   border-radius: 10px;
+  background: var(--primary);
+  color: white;
   cursor: pointer;
-  transition: 0.3s;
-}
-
-button:hover {
-  transform: translateY(-2px);
-  background: #6a4ce0;
 }
 
 button.secondary {
@@ -98,7 +87,6 @@ button.secondary {
   color: #333;
 }
 
-/* Upload */
 .upload {
   border: 2px dashed #ccc;
   padding: 20px;
@@ -108,8 +96,21 @@ button.secondary {
   margin-top: 15px;
 }
 
-.upload:hover {
-  border-color: var(--primary);
+.status {
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.history {
+  margin-top: 15px;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+.history div {
+  padding: 5px;
+  border-bottom: 1px solid #eee;
 }
 
 /* Result panel */
@@ -120,57 +121,18 @@ button.secondary {
   width: 350px;
   height: 100%;
   background: white;
-  box-shadow: -10px 0 20px rgba(0,0,0,0.1);
-  transition: 0.4s;
   padding: 20px;
-  display: flex;
-  flex-direction: column;
+  transition: 0.4s;
 }
 
 .result-panel.active {
   right: 0;
 }
 
-.result {
-  margin-top: 10px;
-  word-break: break-all;
-}
-
-/* History */
-.history {
-  margin-top: 20px;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.history div {
-  padding: 8px;
-  border-bottom: 1px solid #eee;
-  font-size: 13px;
-}
-
-/* Status */
-.status {
-  margin-top: 10px;
-  font-size: 13px;
-  color: #666;
-}
-
-/* Mobile */
-@media(max-width: 768px){
-  .card {
-    flex-direction: column;
-  }
-
-  .controls {
-    width: 100%;
-    border-left: none;
-    border-top: 1px solid #eee;
-  }
-
-  .result-panel {
-    width: 100%;
-  }
+@media(max-width:768px){
+  .card { flex-direction: column; }
+  .controls { width: 100%; }
+  .result-panel { width: 100%; }
 }
 </style>
 </head>
@@ -182,19 +144,18 @@ button.secondary {
 <div class="container">
   <div class="card">
 
-    <!-- Camera -->
     <div id="reader">
       <div class="overlay"></div>
     </div>
 
-    <!-- Controls -->
     <div class="controls">
       <button id="startBtn">Start Camera</button>
       <button id="stopBtn" class="secondary">Stop</button>
       <button id="flashBtn" class="secondary">Flash</button>
+      <button id="soundBtn" class="secondary">🔇 Sound Off</button>
 
       <div class="upload" tabindex="0" id="uploadBox">
-        Drag & Drop or Click to Upload Image
+        Click or Drop Image
         <input type="file" id="fileInput" hidden>
       </div>
 
@@ -203,11 +164,11 @@ button.secondary {
       <div class="history" id="history"></div>
     </div>
 
-    <!-- Result Panel -->
     <div class="result-panel" id="resultPanel">
-      <h3>Scan Result</h3>
-      <div class="result" id="resultText"></div>
+      <h3>Result</h3>
+      <div id="resultText"></div>
       <button id="copyBtn">Copy</button>
+      <button id="scanAgainBtn">Scan Again</button>
     </div>
 
   </div>
@@ -218,23 +179,28 @@ let scanner = null;
 let isRunning = false;
 let historyList = [];
 let flashOn = false;
+let soundEnabled = false; // START MUTED
+let scanLock = false;
 
 const statusEl = document.getElementById("status");
 const resultPanel = document.getElementById("resultPanel");
 const resultText = document.getElementById("resultText");
 const historyEl = document.getElementById("history");
+const soundBtn = document.getElementById("soundBtn");
 
-/* Sound */
 const beep = new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
 
-/* Detect URL */
+/* URL check */
 function isURL(text) {
   return /^https?:\/\//i.test(text);
 }
 
 /* Show result */
 function showResult(text) {
-  beep.play();
+  if (scanLock) return;
+  scanLock = true;
+
+  if (soundEnabled) beep.play();
 
   if (isURL(text)) {
     resultText.innerHTML = `<a href="${text}" target="_blank">${text}</a>`;
@@ -246,17 +212,21 @@ function showResult(text) {
 
   historyList.unshift(text);
   renderHistory();
+
+  setTimeout(() => {
+    scanLock = false;
+  }, 1500);
 }
 
 /* History */
 function renderHistory() {
   historyEl.innerHTML = historyList
-    .slice(0, 10)
-    .map(item => `<div>${item}</div>`)
+    .slice(0,10)
+    .map(i => `<div>${i}</div>`)
     .join("");
 }
 
-/* Start camera */
+/* Start */
 async function startScanner() {
   if (isRunning) return;
 
@@ -264,26 +234,22 @@ async function startScanner() {
     scanner = new Html5Qrcode("reader");
 
     const devices = await Html5Qrcode.getCameras();
-    const backCamera = devices.find(d => d.label.toLowerCase().includes("back")) || devices[0];
+    const cam = devices.find(d => d.label.toLowerCase().includes("back")) || devices[0];
 
-    await scanner.start(
-      backCamera.id,
-      { fps: 10, qrbox: 250 },
-      decoded => {
-        showResult(decoded);
-      }
+    await scanner.start(cam.id, { fps: 10, qrbox: 250 },
+      (decoded) => showResult(decoded)
     );
 
     isRunning = true;
     statusEl.textContent = "Scanning...";
   } catch (err) {
-    statusEl.textContent = "Camera error: " + err;
+    statusEl.textContent = "Camera error";
   }
 }
 
-/* Stop camera */
+/* Stop */
 async function stopScanner() {
-  if (!isRunning || !scanner) return;
+  if (!scanner || !isRunning) return;
 
   await scanner.stop();
   scanner.clear();
@@ -291,7 +257,7 @@ async function stopScanner() {
   statusEl.textContent = "Stopped";
 }
 
-/* Flash toggle */
+/* Flash */
 async function toggleFlash() {
   if (!scanner) return;
 
@@ -300,13 +266,13 @@ async function toggleFlash() {
     await scanner.applyVideoConstraints({
       advanced: [{ torch: flashOn }]
     });
-  } catch (e) {
+  } catch {
     alert("Flash not supported");
   }
 }
 
-/* Upload scan */
-document.getElementById("fileInput").addEventListener("change", async (e) => {
+/* Upload */
+fileInput.onchange = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
@@ -315,21 +281,15 @@ document.getElementById("fileInput").addEventListener("change", async (e) => {
     const result = await html5Qr.scanFile(file, true);
     showResult(result);
   } catch {
-    statusEl.textContent = "No QR code found in image";
+    statusEl.textContent = "No QR found";
   }
-});
+};
 
-/* Drag & drop */
-const uploadBox = document.getElementById("uploadBox");
+/* Drag */
+uploadBox.onclick = () => fileInput.click();
+uploadBox.ondragover = e => e.preventDefault();
 
-uploadBox.addEventListener("click", () => fileInput.click());
-uploadBox.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") fileInput.click();
-});
-
-uploadBox.addEventListener("dragover", e => e.preventDefault());
-
-uploadBox.addEventListener("drop", async (e) => {
+uploadBox.ondrop = async (e) => {
   e.preventDefault();
   const file = e.dataTransfer.files[0];
 
@@ -340,17 +300,28 @@ uploadBox.addEventListener("drop", async (e) => {
   } catch {
     statusEl.textContent = "Invalid image";
   }
-});
+};
 
 /* Copy */
-document.getElementById("copyBtn").onclick = () => {
+copyBtn.onclick = () => {
   navigator.clipboard.writeText(resultText.innerText);
 };
 
+/* Scan Again */
+scanAgainBtn.onclick = () => {
+  resultPanel.classList.remove("active");
+};
+
+/* Sound toggle */
+soundBtn.onclick = () => {
+  soundEnabled = !soundEnabled;
+  soundBtn.textContent = soundEnabled ? "🔊 Sound On" : "🔇 Sound Off";
+};
+
 /* Buttons */
-document.getElementById("startBtn").onclick = startScanner;
-document.getElementById("stopBtn").onclick = stopScanner;
-document.getElementById("flashBtn").onclick = toggleFlash;
+startBtn.onclick = startScanner;
+stopBtn.onclick = stopScanner;
+flashBtn.onclick = toggleFlash;
 
 </script>
 
