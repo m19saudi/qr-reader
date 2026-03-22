@@ -17,7 +17,7 @@ body {
   margin:0;
   font-family:Arial;
   background:var(--bg);
-  overflow-x:hidden; /* FIX overflow */
+  overflow-x:hidden; /* Prevent horizontal overflow */
 }
 
 /* Header */
@@ -37,7 +37,7 @@ header {
 
 .card {
   display:flex;
-  flex-wrap:wrap; /* FIX overflow */
+  flex-wrap:wrap;
   background:white;
   border-radius:16px;
   overflow:hidden;
@@ -48,6 +48,10 @@ header {
 #reader {
   flex:1 1 500px;
   min-height:300px;
+  border-bottom-left-radius:20px;
+  border-bottom-right-radius:20px;
+  overflow:hidden;
+  box-shadow:0 10px 20px rgba(0,0,0,0.08);
 }
 
 /* Controls */
@@ -103,7 +107,12 @@ button {
   font-size:13px;
 }
 
-/* RESULT PANEL (Desktop) */
+.history div {
+  padding:6px;
+  border-bottom:1px solid #eee;
+}
+
+/* Result Panel */
 .result-panel {
   position:absolute;
   right:-100%;
@@ -121,19 +130,11 @@ button {
   right:0;
 }
 
-/* MOBILE FIX */
+/* Mobile */
 @media(max-width:768px){
-
-  .card {
-    flex-direction:column;
-  }
-
-  .controls {
-    border-left:none;
-    border-top:1px solid #eee;
-  }
-
-  /* Bottom Sheet */
+  .card { flex-direction:column; }
+  .controls { border-left:none; border-top:1px solid #eee; }
+  
   .result-panel {
     top:auto;
     bottom:-100%;
@@ -149,17 +150,8 @@ button {
     bottom:0;
   }
 
-  /* Better button sizing */
-  .icon-btn {
-    width:55px;
-    height:55px;
-    font-size:22px;
-  }
-
-  .main-btn {
-    padding:14px;
-    font-size:16px;
-  }
+  .icon-btn { width:55px; height:55px; font-size:22px; }
+  .main-btn { padding:14px; font-size:16px; }
 }
 </style>
 </head>
@@ -178,7 +170,7 @@ button {
       <div class="control-row">
         <button id="toggleBtn" class="main-btn">Start Camera</button>
         <button id="flashBtn" class="icon-btn">🔦</button>
-        <button id="soundBtn" class="icon-btn">🔇</button>
+        <button id="vibBtn" class="icon-btn">🔇</button>
       </div>
 
       <div class="upload" id="uploadBox">
@@ -205,32 +197,50 @@ button {
 let scanner=null;
 let running=false;
 let flashOn=false;
-let soundOn=false;
 let lock=false;
 let history=[];
 
 const beep=new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
 
+// Three-state vibration/sound button: 0=Mute,1=Vibration,2=Sound+Vibration
+let vibState=0;
 const toggleBtn=document.getElementById("toggleBtn");
+const flashBtn=document.getElementById("flashBtn");
+const vibBtn=document.getElementById("vibBtn");
 const resultPanel=document.getElementById("resultPanel");
 const resultText=document.getElementById("resultText");
 const historyEl=document.getElementById("history");
 
-/* URL */
-function isURL(t){
-  return /^https?:\/\//i.test(t);
+function updateVibBtn(){
+  switch(vibState){
+    case 0: vibBtn.textContent="🔇"; break;
+    case 1: vibBtn.textContent="📳"; break;
+    case 2: vibBtn.textContent="🔊"; break;
+  }
 }
 
-/* Result */
+/* URL check */
+function isURL(t){ return /^https?:\/\//i.test(t); }
+
+/* Render history */
+function renderHistory(){
+  historyEl.innerHTML=history.slice(0,10).map(i=>`<div>${i}</div>`).join("");
+}
+
+/* Show scan result */
 function showResult(text){
   if(lock) return;
   lock=true;
 
-  if(soundOn) beep.play();
+  // Handle vibration
+  if(vibState===1 || vibState===2){
+    if(navigator.vibrate){ navigator.vibrate(100); }
+  }
 
-  resultText.innerHTML=isURL(text)
-    ? `<a href="${text}" target="_blank">${text}</a>`
-    : text;
+  // Handle sound
+  if(vibState===2){ beep.play(); }
+
+  resultText.innerHTML=isURL(text) ? `<a href="${text}" target="_blank">${text}</a>` : text;
 
   resultPanel.classList.add("active");
 
@@ -240,35 +250,23 @@ function showResult(text){
   setTimeout(()=>lock=false,1500);
 }
 
-/* History */
-function renderHistory(){
-  historyEl.innerHTML=history
-    .slice(0,10)
-    .map(i=>`<div>${i}</div>`)
-    .join("");
-}
-
-/* Toggle Camera */
+/* Toggle camera start/stop */
 toggleBtn.onclick=async()=>{
   if(!running){
     try{
       scanner=new Html5Qrcode("reader");
-
       const cams=await Html5Qrcode.getCameras();
       const cam=cams.find(c=>c.label.toLowerCase().includes("back"))||cams[0];
 
       await scanner.start(cam.id,{fps:10,qrbox:250},showResult);
-
       running=true;
       toggleBtn.textContent="Stop Camera";
-
     }catch{
       alert("Camera error");
     }
   }else{
     await scanner.stop();
     scanner.clear();
-
     running=false;
     toggleBtn.textContent="Start Camera";
   }
@@ -279,45 +277,43 @@ flashBtn.onclick=async()=>{
   if(!scanner) return;
   try{
     flashOn=!flashOn;
-    await scanner.applyVideoConstraints({
-      advanced:[{torch:flashOn}]
-    });
-  }catch{
-    alert("Flash not supported");
-  }
+    await scanner.applyVideoConstraints({advanced:[{torch:flashOn}]});
+  }catch{ alert("Flash not supported"); }
 };
 
-/* Sound */
-soundBtn.onclick=()=>{
-  soundOn=!soundOn;
-  soundBtn.textContent=soundOn?"🔊":"🔇";
+/* Vibration/Sound toggle */
+vibBtn.onclick=()=>{
+  vibState=(vibState+1)%3;
+  updateVibBtn();
 };
 
 /* Scan Again */
-scanAgainBtn.onclick=()=>{
-  resultPanel.classList.remove("active");
-};
+scanAgainBtn.onclick=()=>{ resultPanel.classList.remove("active"); };
 
-/* Upload */
+/* Upload / drag & drop */
 uploadBox.onclick=()=>fileInput.click();
-
 fileInput.onchange=async(e)=>{
   const file=e.target.files[0];
   if(!file) return;
-
   try{
     const html5Qr=new Html5Qrcode("reader");
     const res=await html5Qr.scanFile(file,true);
     showResult(res);
-  }catch{
-    alert("No code found");
-  }
+  }catch{ alert("No code found"); }
+};
+uploadBox.ondragover=e=>e.preventDefault();
+uploadBox.ondrop=async e=>{
+  e.preventDefault();
+  const file=e.dataTransfer.files[0];
+  try{
+    const html5Qr=new Html5Qrcode("reader");
+    const res=await html5Qr.scanFile(file,true);
+    showResult(res);
+  }catch{ alert("Invalid image"); }
 };
 
-/* Copy */
-copyBtn.onclick=()=>{
-  navigator.clipboard.writeText(resultText.innerText);
-};
+/* Copy result */
+copyBtn.onclick=()=>{ navigator.clipboard.writeText(resultText.innerText); };
 </script>
 
 </body>
