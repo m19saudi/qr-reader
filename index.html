@@ -1,133 +1,166 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QuickScan</title>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
 :root {
-  --primary: #7b5cff;
-  --bg: #f6f7fb;
+  --primary:#7b5cff;
+  --bg:#f6f7fb;
 }
 
 body {
-  margin: 0;
-  font-family: Arial;
-  background: var(--bg);
+  margin:0;
+  font-family:Arial;
+  background:var(--bg);
 }
 
 /* Header */
 header {
-  background: linear-gradient(135deg, #7b5cff, #a18aff);
-  color: white;
-  padding: 15px;
-  text-align: center;
-  font-weight: bold;
+  background:linear-gradient(135deg,#7b5cff,#a18aff);
+  color:white;
+  padding:15px;
+  text-align:center;
+  font-weight:bold;
 }
 
 /* Layout */
 .container {
-  max-width: 1100px;
-  margin: 20px auto;
+  max-width:1100px;
+  margin:20px auto;
+  padding:10px;
 }
 
 .card {
-  display: flex;
-  background: white;
-  border-radius: 16px;
-  overflow: hidden;
-  position: relative;
+  display:flex;
+  background:white;
+  border-radius:16px;
+  overflow:hidden;
+  position:relative;
 }
 
 /* Camera */
 #reader {
-  flex: 1;
-  min-height: 300px;
-  position: relative;
+  flex:1;
+  min-height:320px;
 }
 
 /* Controls */
 .controls {
-  width: 320px;
-  padding: 20px;
-  border-left: 1px solid #eee;
+  width:350px;
+  padding:20px;
+  border-left:1px solid #eee;
 }
 
-/* Control Row */
+/* Control row */
 .control-row {
-  display: flex;
-  gap: 10px;
-  align-items: center;
+  display:flex;
+  gap:10px;
 }
 
 /* Buttons */
 button {
-  padding: 10px;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
+  border:none;
+  border-radius:10px;
+  cursor:pointer;
 }
 
 .main-btn {
-  flex: 1;
-  background: var(--primary);
-  color: white;
+  flex:1;
+  padding:12px;
+  background:var(--primary);
+  color:white;
+  font-weight:bold;
 }
 
 .icon-btn {
-  width: 45px;
-  height: 45px;
-  background: #eee;
-  font-size: 18px;
+  width:50px;
+  height:50px;
+  font-size:20px;
+  background:#eee;
 }
 
 /* Upload */
 .upload {
-  border: 2px dashed #ccc;
-  padding: 15px;
-  text-align: center;
-  border-radius: 12px;
-  margin-top: 15px;
-  cursor: pointer;
+  border:2px dashed #ccc;
+  padding:15px;
+  text-align:center;
+  border-radius:12px;
+  margin-top:15px;
+  cursor:pointer;
+}
+
+/* History */
+.history {
+  margin-top:15px;
+  max-height:200px;
+  overflow:auto;
+  font-size:13px;
+}
+
+.history div {
+  padding:6px;
+  border-bottom:1px solid #eee;
 }
 
 /* Result Panel */
 .result-panel {
-  position: absolute;
-  right: -400px;
-  top: 0;
-  width: 350px;
-  height: 100%;
-  background: white;
-  padding: 20px;
-  transition: 0.4s;
-  z-index: 999;
+  position:absolute;
+  right:-400px;
+  top:0;
+  width:350px;
+  height:100%;
+  background:white;
+  padding:20px;
+  transition:0.4s;
+  z-index:10;
 }
 
 .result-panel.active {
-  right: 0;
+  right:0;
 }
 
-/* Mobile Fix */
+/* Mobile */
 @media(max-width:768px){
-  .card { flex-direction: column; }
 
-  .controls { width: 100%; }
+  .card {
+    flex-direction:column;
+  }
 
+  .controls {
+    width:100%;
+    border-left:none;
+    border-top:1px solid #eee;
+  }
+
+  /* FIXED RESULT PANEL */
   .result-panel {
-    width: 100%;
-    height: 60%;
-    bottom: -100%;
-    top: auto;
-    right: 0;
-    border-radius: 20px 20px 0 0;
+    width:100%;
+    height:auto;
+    bottom:-100%;
+    top:auto;
+    right:0;
+    border-radius:20px 20px 0 0;
   }
 
   .result-panel.active {
-    bottom: 0;
+    bottom:0;
+  }
+
+  /* FIX BUTTON SIZE */
+  .icon-btn {
+    width:55px;
+    height:55px;
+    font-size:22px;
+  }
+
+  .main-btn {
+    padding:14px;
+    font-size:16px;
   }
 }
 </style>
@@ -144,9 +177,8 @@ button {
 
     <div class="controls">
 
-      <!-- ONE LINE CONTROLS -->
       <div class="control-row">
-        <button id="toggleCamera" class="main-btn">Start Camera</button>
+        <button id="toggleBtn" class="main-btn">Start Camera</button>
         <button id="flashBtn" class="icon-btn">🔦</button>
         <button id="soundBtn" class="icon-btn">🔇</button>
       </div>
@@ -156,12 +188,10 @@ button {
         <input type="file" id="fileInput" hidden>
       </div>
 
-      <div id="status">Idle</div>
-      <div id="history"></div>
+      <div class="history" id="history"></div>
 
     </div>
 
-    <!-- Result Panel -->
     <div class="result-panel" id="resultPanel">
       <h3>Result</h3>
       <div id="resultText"></div>
@@ -173,126 +203,136 @@ button {
 </div>
 
 <script>
-let scanner = null;
-let running = false;
-let flashOn = false;
-let soundOn = false;
-let lock = false;
-let history = [];
+let scanner=null;
+let running=false;
+let flashOn=false;
+let soundOn=false;
+let lock=false;
+let history=[];
 
-const beep = new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
+const beep=new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
 
-const toggleBtn = document.getElementById("toggleCamera");
-const resultPanel = document.getElementById("resultPanel");
-const resultText = document.getElementById("resultText");
+const toggleBtn=document.getElementById("toggleBtn");
+const resultPanel=document.getElementById("resultPanel");
+const resultText=document.getElementById("resultText");
+const historyEl=document.getElementById("history");
 
 /* URL */
 function isURL(t){
   return /^https?:\/\//i.test(t);
 }
 
-/* Result */
+/* Show result */
 function showResult(text){
   if(lock) return;
-  lock = true;
+  lock=true;
 
   if(soundOn) beep.play();
 
-  resultText.innerHTML = isURL(text)
+  resultText.innerHTML=isURL(text)
     ? `<a href="${text}" target="_blank">${text}</a>`
     : text;
 
   resultPanel.classList.add("active");
 
   history.unshift(text);
+  renderHistory();
 
-  setTimeout(()=> lock = false, 1500);
+  setTimeout(()=>lock=false,1500);
+}
+
+/* History */
+function renderHistory(){
+  historyEl.innerHTML=history
+    .slice(0,10)
+    .map(i=>`<div>${i}</div>`)
+    .join("");
 }
 
 /* Toggle Camera */
-toggleBtn.onclick = async () => {
+toggleBtn.onclick=async()=>{
   if(!running){
-    try {
-      scanner = new Html5Qrcode("reader");
+    try{
+      scanner=new Html5Qrcode("reader");
 
-      const cams = await Html5Qrcode.getCameras();
-      const cam = cams.find(c=>c.label.toLowerCase().includes("back")) || cams[0];
+      const cams=await Html5Qrcode.getCameras();
+      const cam=cams.find(c=>c.label.toLowerCase().includes("back"))||cams[0];
 
-      await scanner.start(cam.id, { fps:10, qrbox:250 }, showResult);
+      await scanner.start(cam.id,{fps:10,qrbox:250},showResult);
 
-      running = true;
-      toggleBtn.textContent = "Stop Camera";
+      running=true;
+      toggleBtn.textContent="Stop Camera";
 
-    } catch {
+    }catch{
       alert("Camera error");
     }
-  } else {
+  }else{
     await scanner.stop();
     scanner.clear();
 
-    running = false;
-    toggleBtn.textContent = "Start Camera";
+    running=false;
+    toggleBtn.textContent="Start Camera";
   }
 };
 
 /* Flash */
-flashBtn.onclick = async ()=>{
+flashBtn.onclick=async()=>{
   if(!scanner) return;
-  try {
-    flashOn = !flashOn;
+  try{
+    flashOn=!flashOn;
     await scanner.applyVideoConstraints({
-      advanced:[{ torch: flashOn }]
+      advanced:[{torch:flashOn}]
     });
-  } catch {
+  }catch{
     alert("Flash not supported");
   }
 };
 
 /* Sound */
-soundBtn.onclick = ()=>{
-  soundOn = !soundOn;
-  soundBtn.textContent = soundOn ? "🔊" : "🔇";
+soundBtn.onclick=()=>{
+  soundOn=!soundOn;
+  soundBtn.textContent=soundOn?"🔊":"🔇";
 };
 
 /* Scan Again */
-scanAgainBtn.onclick = ()=>{
+scanAgainBtn.onclick=()=>{
   resultPanel.classList.remove("active");
 };
 
 /* Upload */
-uploadBox.onclick = ()=> fileInput.click();
+uploadBox.onclick=()=>fileInput.click();
 
-fileInput.onchange = async (e)=>{
-  const file = e.target.files[0];
+fileInput.onchange=async(e)=>{
+  const file=e.target.files[0];
   if(!file) return;
 
   try{
-    const html5Qr = new Html5Qrcode("reader");
-    const res = await html5Qr.scanFile(file,true);
+    const html5Qr=new Html5Qrcode("reader");
+    const res=await html5Qr.scanFile(file,true);
     showResult(res);
-  } catch {
+  }catch{
     alert("No code found");
   }
 };
 
 /* Drag */
-uploadBox.ondragover = e=> e.preventDefault();
+uploadBox.ondragover=e=>e.preventDefault();
 
-uploadBox.ondrop = async e=>{
+uploadBox.ondrop=async e=>{
   e.preventDefault();
-  const file = e.dataTransfer.files[0];
+  const file=e.dataTransfer.files[0];
 
   try{
-    const html5Qr = new Html5Qrcode("reader");
-    const res = await html5Qr.scanFile(file,true);
+    const html5Qr=new Html5Qrcode("reader");
+    const res=await html5Qr.scanFile(file,true);
     showResult(res);
-  } catch {
+  }catch{
     alert("Invalid image");
   }
 };
 
 /* Copy */
-copyBtn.onclick = ()=>{
+copyBtn.onclick=()=>{
   navigator.clipboard.writeText(resultText.innerText);
 };
 </script>
