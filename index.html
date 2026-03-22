@@ -5,112 +5,113 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>QR & Barcode Scanner</title>
 <style>
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #f7f7f7;
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  align-items: center;
-  justify-content: flex-start;
-  padding-top: 30px;
-}
-header {
-  width: 100%;
-  background: linear-gradient(135deg, #6a0dad, #7d1eff);
-  color: white;
-  padding: 1.8rem 0;
-  font-size: 1.8rem;
-  text-align: center;
-  user-select: none;
-}
-#content {
-  background: white;
-  width: 400px;
-  height: 400px; /* fixed square */
-  padding: 1rem;
-  border-radius: 16px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.1);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  margin-top: 20px;
-}
-#file-drop {
-  border: 2.5px dashed #6a0dad;
-  border-radius: 12px;
-  padding: 0.8rem;
-  cursor: pointer;
-  color: #6a0dad;
-  font-weight: 700;
-  font-size: 1.1rem;
-  transition: background-color 0.3s, border-color 0.3s;
-  user-select: none;
-  margin-bottom: 1rem;
-  width: 90%;
-}
-#file-drop.hover,
-#file-drop:focus {
-  background-color: #f0e6ff;
-  border-color: #a56fff;
-  outline: none;
-}
-#instructions {
-  font-size: 0.9rem;
-  color: #444;
-  margin-bottom: 0.5rem;
-}
-#error-message {
-  min-height: 1.4em;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  font-size: 0.95rem;
-  color: #333;
-  word-break: break-word;
-  user-select: text;
-}
-#error-message.success { color: #2e7d32; }
-#error-message.error { color: #d32f2f; }
-#qr-reader {
-  width: 90%;
-  height: 180px;
-  margin-bottom: 0.8rem;
-  border-radius: 12px;
-  overflow: hidden;
-  background: black;
-  box-shadow: 0 4px 15px rgba(106,13,173,0.3);
-}
-#qr-reader.active { box-shadow: 0 0 20px 4px #6a0dad; }
-button {
-  background-color: #6a0dad;
-  border: none;
-  color: white;
-  padding: 0.6rem 1.5rem;
-  font-size: 1rem;
-  border-radius: 12px;
-  cursor: pointer;
-  font-weight: 700;
-  transition: all 0.3s;
-}
-button:hover,
-button:focus {
-  background-color: #8a29ff;
-  transform: scale(1.05);
-  outline: none;
-}
-@media (max-width: 480px) {
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f7f7f7;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    align-items: center;
+    justify-content: flex-start;
+    padding-top: 30px;
+  }
+  header {
+    width: 100%;
+    background: linear-gradient(135deg, #6a0dad, #7d1eff);
+    color: white;
+    padding: 1.8rem 0;
+    font-size: 1.8rem;
+    text-align: center;
+    user-select: none;
+  }
   #content {
+    background: white;
+    max-width: 420px;
     width: 90vw;
-    height: auto;
-    padding: 1rem;
+    padding: 2rem;
+    border-radius: 16px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    text-align: center;
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
   }
+  #file-drop {
+    border: 2.5px dashed #6a0dad;
+    border-radius: 12px;
+    padding: 1.8rem;
+    cursor: pointer;
+    color: #6a0dad;
+    font-weight: 700;
+    font-size: 1.15rem;
+    transition: background-color 0.3s, border-color 0.3s;
+    user-select: none;
+    margin-bottom: 1.5rem;
+    width: 100%;
+    text-align: center;
+  }
+  #file-drop.hover, #file-drop:focus {
+    background-color: #f0e6ff;
+    border-color: #a56fff;
+    outline: none;
+  }
+  #instructions {
+    margin-bottom: 1rem;
+    font-size: 1rem;
+    color: #444;
+  }
+  #error-message {
+    min-height: 1.6em;
+    margin-bottom: 1rem;
+    font-weight: 600;
+    font-size: 1rem;
+    color: #333;
+    word-break: break-word;
+    user-select: text;
+  }
+  #error-message.success { color: #2e7d32; }
+  #error-message.error { color: #d32f2f; }
   #qr-reader {
-    height: 150px;
+    width: 100%;
+    max-width: 400px;
+    height: 320px;
+    margin: 0 auto 1.5rem auto;
+    border-radius: 16px;
+    overflow: hidden;
+    background: black;
+    box-shadow: 0 4px 15px rgba(106, 13, 173, 0.3);
+    transition: box-shadow 0.3s ease;
   }
-}
+  #qr-reader.active {
+    box-shadow: 0 0 30px 6px #6a0dad;
+  }
+  button {
+    background-color: #6a0dad;
+    border: none;
+    color: white;
+    padding: 0.9rem 2.4rem;
+    font-size: 1.1rem;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 700;
+    transition: background-color 0.3s, transform 0.2s, box-shadow 0.3s;
+    margin-bottom: 1.8rem;
+    user-select: none;
+  }
+  button:hover,
+  button:focus {
+    background-color: #8a29ff;
+    transform: scale(1.07);
+    box-shadow: 0 6px 14px rgba(106, 13, 173, 0.4);
+    outline: none;
+  }
+  @media (max-width: 480px) {
+    #qr-reader { height: 240px; }
+    #content { padding: 1.5rem; }
+  }
 </style>
 </head>
 <body>
@@ -152,12 +153,11 @@ async function startCamera() {
     html5QrCode = new Html5Qrcode("qr-reader");
     const devices = await Html5Qrcode.getCameras();
     if (devices && devices.length) {
-      let rearCamera = devices.find(device => /back|rear|environment/i.test(device.label));
+      let rearCamera = devices.find(d => /back|rear|environment/i.test(d.label));
       const cameraId = rearCamera ? rearCamera.id : devices[0].id;
-
       await html5QrCode.start(
         cameraId,
-        { fps: 10, qrbox: 150 },
+        { fps: 10, qrbox: 250 },
         qrCodeMessage => {
           errorMessage.textContent = `Result: ${qrCodeMessage}`;
           errorMessage.classList.remove('error');
@@ -199,14 +199,10 @@ async function stopCamera() {
 }
 
 startCameraBtn.addEventListener('click', async () => {
-  if (cameraRunning) {
-    await stopCamera();
-  } else {
-    await startCamera();
-  }
+  if (cameraRunning) await stopCamera(); else await startCamera();
 });
 
-// Drag & Drop handlers
+// Drag & Drop + File Input
 fileDrop.addEventListener('dragover', e => { e.preventDefault(); fileDrop.classList.add('hover'); });
 fileDrop.addEventListener('dragleave', e => { e.preventDefault(); fileDrop.classList.remove('hover'); });
 fileDrop.addEventListener('drop', e => {
@@ -214,26 +210,29 @@ fileDrop.addEventListener('drop', e => {
   fileDrop.classList.remove('hover');
   if (e.dataTransfer.files.length > 0) decodeFile(e.dataTransfer.files[0]);
 });
-
 fileDrop.addEventListener('click', () => fileInput.click());
-fileDrop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); } });
-
-fileInput.addEventListener('change', () => {
-  if (fileInput.files.length > 0) decodeFile(fileInput.files[0]);
-});
+fileDrop.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' ') { e.preventDefault(); fileInput.click(); } });
+fileInput.addEventListener('change', () => { if(fileInput.files.length>0) decodeFile(fileInput.files[0]); });
 
 function decodeFile(file) {
   errorMessage.textContent = "Scanning image...";
-  errorMessage.classList.remove('error', 'success');
+  errorMessage.classList.remove('error','success');
+
+  if(cameraRunning){
+    stopCamera().then(() => scanFile(file));
+  } else scanFile(file);
+}
+
+function scanFile(file){
   const reader = new FileReader();
   reader.onload = () => {
     if(!html5QrCode) html5QrCode = new Html5Qrcode("qr-reader");
-    html5QrCode.scanFile(reader.result, true)
-      .then(result => {
+    html5QrCode.scanFile(reader.result,true)
+      .then(result=>{
         errorMessage.textContent = `Result: ${result}`;
         errorMessage.classList.add('success');
       })
-      .catch(() => {
+      .catch(()=>{
         errorMessage.textContent = "No QR code found in the image.";
         errorMessage.classList.add('error');
       });
