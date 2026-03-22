@@ -13,8 +13,8 @@
     flex-direction: column;
     min-height: 100vh;
     align-items: center;
-    justify-content: flex-start; /* start from top */
-    padding-top: 30px; /* space from top */
+    justify-content: flex-start;
+    padding-top: 30px;
   }
   header {
     width: 100%;
@@ -24,7 +24,6 @@
     font-size: 1.8rem;
     text-align: center;
     user-select: none;
-    /* Removed box-shadow */
   }
   #content {
     background: white;
@@ -34,7 +33,8 @@
     border-radius: 16px;
     box-shadow: 0 6px 20px rgba(0,0,0,0.1);
     text-align: center;
-    margin-top: 20px;  /* Added space between header and panel */
+    margin-top: 20px;
+    position: relative;
   }
   #file-drop {
     border: 2.5px dashed #6a0dad;
@@ -46,7 +46,7 @@
     font-size: 1.15rem;
     transition: background-color 0.3s, border-color 0.3s;
     user-select: none;
-    margin-bottom: 1.5rem; /* space below drag-drop */
+    margin-bottom: 1.5rem;
   }
   #file-drop.hover,
   #file-drop:focus {
@@ -69,10 +69,10 @@
     user-select: text;
   }
   #error-message.success {
-    color: #2e7d32; /* Green */
+    color: #2e7d32;
   }
   #error-message.error {
-    color: #d32f2f; /* Red */
+    color: #d32f2f;
   }
   #qr-reader {
     width: 100%;
@@ -108,13 +108,51 @@
     box-shadow: 0 6px 14px rgba(106, 13, 173, 0.4);
     outline: none;
   }
-  /* Responsive tweaks */
+  /* Result popup */
+  #result-popup {
+    position: fixed;
+    top: 50px;
+    right: -320px;
+    width: 300px;
+    background: white;
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    padding: 1.4rem 1.8rem;
+    font-family: Arial, sans-serif;
+    z-index: 9999;
+    transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  #result-popup.visible {
+    right: 20px;
+  }
+  #result-popup h2 {
+    margin: 0 0 0.6rem 0;
+    font-size: 1.4rem;
+    color: #6a0dad;
+    user-select: none;
+  }
+  #result-text {
+    font-size: 1rem;
+    color: #222;
+    word-break: break-word;
+  }
+  #result-text a {
+    color: #6a0dad;
+    text-decoration: underline;
+  }
   @media (max-width: 480px) {
     #qr-reader {
       height: 240px;
     }
     #content {
       padding: 1.5rem;
+    }
+    #result-popup {
+      width: 90vw;
+      right: -100vw;
+    }
+    #result-popup.visible {
+      right: 5vw;
     }
   }
 </style>
@@ -136,22 +174,54 @@
   <div id="qr-reader" aria-label="Camera preview for QR code scanning"></div>
   <button id="start-camera" aria-pressed="false" aria-controls="qr-reader">Start Camera</button>
 
-  <input type="file" id="file-input" accept="image/*" aria-hidden="true" />
-
 </div>
 
-<!-- Use local html5-qrcode.min.js file here -->
+<!-- Local html5-qrcode.min.js -->
 <script src="html5-qrcode.min.js"></script>
+
+<!-- Result popup -->
+<div id="result-popup" role="alert" aria-live="polite" aria-atomic="true" aria-relevant="additions">
+  <h2>Result</h2>
+  <div id="result-text"></div>
+</div>
 
 <script>
   const errorMessage = document.getElementById('error-message');
   const startCameraBtn = document.getElementById('start-camera');
   const fileDrop = document.getElementById('file-drop');
-  const fileInput = document.getElementById('file-input');
   const qrReaderContainer = document.getElementById('qr-reader');
+  const resultPopup = document.getElementById('result-popup');
+  const resultText = document.getElementById('result-text');
 
   let html5QrCode = null;
   let cameraRunning = false;
+  let popupTimeout = null;
+
+  function isValidUrl(str) {
+    try {
+      const url = new URL(str);
+      return url.protocol === "http:" || url.protocol === "https:";
+    } catch {
+      return false;
+    }
+  }
+
+  function showResult(text) {
+    // Clear existing timeout if any
+    if (popupTimeout) clearTimeout(popupTimeout);
+
+    if (isValidUrl(text)) {
+      resultText.innerHTML = `<a href="${text}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+    } else {
+      resultText.textContent = text;
+    }
+    resultPopup.classList.add('visible');
+
+    // Auto-hide popup after 10 seconds
+    popupTimeout = setTimeout(() => {
+      resultPopup.classList.remove('visible');
+    }, 10000);
+  }
 
   async function startCamera() {
     startCameraBtn.disabled = true;
@@ -170,20 +240,19 @@
           cameraId,
           { fps: 10, qrbox: 250 },
           qrCodeMessage => {
-            errorMessage.textContent = `Result: ${qrCodeMessage}`;
-            errorMessage.classList.remove('error');
-            errorMessage.classList.add('success');
+            errorMessage.textContent = "";
+            errorMessage.classList.remove('error', 'success');
+            showResult(qrCodeMessage);
           },
           err => {
-            // Optional: handle scan errors (ignore to reduce noise)
+            // Can ignore scan errors or show if desired
           }
         );
         cameraRunning = true;
         startCameraBtn.textContent = "Stop Camera";
         startCameraBtn.setAttribute('aria-pressed', 'true');
         errorMessage.textContent = "Camera started. Point to a QR code.";
-        errorMessage.classList.remove('error');
-        errorMessage.classList.remove('success');
+        errorMessage.classList.remove('error', 'success');
         qrReaderContainer.classList.add('active');
       } else {
         errorMessage.textContent = "No cameras found.";
@@ -205,8 +274,7 @@
         startCameraBtn.textContent = "Start Camera";
         startCameraBtn.setAttribute('aria-pressed', 'false');
         errorMessage.textContent = "Camera stopped.";
-        errorMessage.classList.remove('success');
-        errorMessage.classList.remove('error');
+        errorMessage.classList.remove('success', 'error');
         qrReaderContainer.classList.remove('active');
       } catch (e) {
         errorMessage.textContent = "Error stopping camera: " + e;
@@ -223,7 +291,7 @@
     }
   });
 
-  // Drag & Drop handlers
+  // Drag & Drop handlers and click to open file dialog
   fileDrop.addEventListener('dragover', e => {
     e.preventDefault();
     fileDrop.classList.add('hover');
@@ -240,29 +308,45 @@
     }
   });
 
-  fileDrop.addEventListener('click', () => fileInput.click());
+  fileDrop.addEventListener('click', () => {
+    // Create a temporary hidden file input for this click
+    const tempInput = document.createElement('input');
+    tempInput.type = 'file';
+    tempInput.accept = 'image/*';
+    tempInput.style.display = 'none';
+    document.body.appendChild(tempInput);
+    tempInput.addEventListener('change', () => {
+      if (tempInput.files.length > 0) decodeFile(tempInput.files[0]);
+      document.body.removeChild(tempInput);
+    });
+    tempInput.click();
+  });
+
   fileDrop.addEventListener('keydown', e => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      fileInput.click();
-    }
-  });
-
-  fileInput.addEventListener('change', () => {
-    if (fileInput.files.length > 0) {
-      decodeFile(fileInput.files[0]);
+      fileDrop.click();
     }
   });
 
   function decodeFile(file) {
     errorMessage.textContent = "Scanning image...";
     errorMessage.classList.remove('error', 'success');
+    // If camera is running, stop it because they are scanning file now
+    if (cameraRunning) {
+      stopCamera();
+    }
     const reader = new FileReader();
     reader.onload = () => {
+      if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode("qr-reader");
+      }
       html5QrCode.scanFile(reader.result, true)
       .then(result => {
-        errorMessage.textContent = `Result: ${result}`;
+        errorMessage.textContent = "";
+        errorMessage.classList.remove('error');
         errorMessage.classList.add('success');
+        showResult(result);
       })
       .catch(() => {
         errorMessage.textContent = "No QR code found in the image.";
