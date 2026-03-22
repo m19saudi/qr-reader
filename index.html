@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>QR & Barcode Scanner</title>
 <style>
+  /* Reset & basics */
   body {
     margin: 0;
     font-family: Arial, sans-serif;
     background: #f7f7f7;
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
     align-items: center;
-    justify-content: flex-start;
     padding-top: 30px;
   }
   header {
@@ -25,17 +25,27 @@
     text-align: center;
     user-select: none;
   }
-  #content {
-    background: white;
-    max-width: 420px;
+  /* Container that holds main content + result popup side by side */
+  #container {
+    display: flex;
+    max-width: 900px;
     width: 90vw;
-    padding: 2rem;
+    background: white;
     border-radius: 16px;
     box-shadow: 0 6px 20px rgba(0,0,0,0.1);
-    text-align: center;
+    overflow: hidden;
     margin-top: 20px;
-    position: relative;
   }
+  /* Left panel: main controls */
+  #content {
+    flex: 1;
+    padding: 2rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+  }
+  /* Drag & Drop area */
   #file-drop {
     border: 2.5px dashed #6a0dad;
     border-radius: 12px;
@@ -46,7 +56,6 @@
     font-size: 1.15rem;
     transition: background-color 0.3s, border-color 0.3s;
     user-select: none;
-    margin-bottom: 1.5rem;
   }
   #file-drop.hover,
   #file-drop:focus {
@@ -55,13 +64,11 @@
     outline: none;
   }
   #instructions {
-    margin-bottom: 1rem;
     font-size: 1rem;
     color: #444;
   }
   #error-message {
     min-height: 1.6em;
-    margin-bottom: 1rem;
     font-weight: 600;
     font-size: 1rem;
     color: #333;
@@ -74,19 +81,26 @@
   #error-message.error {
     color: #d32f2f;
   }
+  /* Camera preview container */
   #qr-reader {
     width: 100%;
-    max-width: 400px;
-    height: 320px;
-    margin: 0 auto 1.5rem auto;
+    /* Maintain square aspect ratio using padding trick */
+    position: relative;
+    padding-top: 100%; /* 1:1 aspect ratio */
     border-radius: 16px;
     overflow: hidden;
     background: black;
     box-shadow: 0 4px 15px rgba(106, 13, 173, 0.3);
-    transition: box-shadow 0.3s ease;
   }
-  #qr-reader.active {
-    box-shadow: 0 0 30px 6px #6a0dad;
+  /* The actual video/scanner canvas is absolutely positioned inside */
+  #qr-reader > canvas, 
+  #qr-reader > video {
+    position: absolute !important;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover;
   }
   button {
     background-color: #6a0dad;
@@ -98,8 +112,9 @@
     cursor: pointer;
     font-weight: 700;
     transition: background-color 0.3s, transform 0.2s, box-shadow 0.3s;
-    margin-bottom: 1.8rem;
     user-select: none;
+    align-self: center;
+    width: 160px;
   }
   button:hover,
   button:focus {
@@ -108,22 +123,15 @@
     box-shadow: 0 6px 14px rgba(106, 13, 173, 0.4);
     outline: none;
   }
-  /* Result popup */
+  /* Result popup on right side */
   #result-popup {
-    position: fixed;
-    top: 50px;
-    right: -320px;
-    width: 300px;
+    width: 320px;
     background: white;
-    border-radius: 14px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-    padding: 1.4rem 1.8rem;
+    border-left: 2px solid #6a0dad;
+    padding: 1.8rem 2rem;
     font-family: Arial, sans-serif;
-    z-index: 9999;
-    transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  #result-popup.visible {
-    right: 20px;
+    user-select: text;
+    box-sizing: border-box;
   }
   #result-popup h2 {
     margin: 0 0 0.6rem 0;
@@ -135,24 +143,25 @@
     font-size: 1rem;
     color: #222;
     word-break: break-word;
+    white-space: pre-wrap;
   }
   #result-text a {
     color: #6a0dad;
     text-decoration: underline;
   }
-  @media (max-width: 480px) {
-    #qr-reader {
-      height: 240px;
-    }
-    #content {
-      padding: 1.5rem;
+  /* Responsive: stack on small screens */
+  @media (max-width: 760px) {
+    #container {
+      flex-direction: column;
+      width: 90vw;
+      max-width: none;
     }
     #result-popup {
-      width: 90vw;
-      right: -100vw;
-    }
-    #result-popup.visible {
-      right: 5vw;
+      width: 100%;
+      border-left: none;
+      border-top: 2px solid #6a0dad;
+      padding: 1rem 1.5rem;
+      margin-top: 20px;
     }
   }
 </style>
@@ -161,41 +170,41 @@
 
 <header>QR & Barcode Scanner</header>
 
-<div id="content" role="main">
+<div id="container">
+  <div id="content" role="main">
 
-  <div id="file-drop" tabindex="0" role="button" aria-label="Drag and drop an image here or click to select">
-    Drag & drop an image here or click to select
+    <div id="file-drop" tabindex="0" role="button" aria-label="Drag and drop an image here or click to select">
+      Drag & drop an image here or click to select
+    </div>
+
+    <div id="instructions">Allow camera access and point your device to a QR or barcode. Or drag & drop an image with a code above.</div>
+
+    <div id="error-message" aria-live="polite"></div>
+
+    <div id="qr-reader" aria-label="Camera preview for QR code scanning"></div>
+
+    <button id="start-camera" aria-pressed="false" aria-controls="qr-reader">Start Camera</button>
+
   </div>
 
-  <div id="instructions">Allow camera access and point your device to a QR or barcode. Or drag & drop an image with a code above.</div>
-
-  <div id="error-message" aria-live="polite"></div>
-
-  <div id="qr-reader" aria-label="Camera preview for QR code scanning"></div>
-  <button id="start-camera" aria-pressed="false" aria-controls="qr-reader">Start Camera</button>
-
+  <div id="result-popup" role="alert" aria-live="polite" aria-atomic="true" aria-relevant="additions">
+    <h2>Result</h2>
+    <div id="result-text">No result yet.</div>
+  </div>
 </div>
 
 <!-- Local html5-qrcode.min.js -->
 <script src="html5-qrcode.min.js"></script>
-
-<!-- Result popup -->
-<div id="result-popup" role="alert" aria-live="polite" aria-atomic="true" aria-relevant="additions">
-  <h2>Result</h2>
-  <div id="result-text"></div>
-</div>
 
 <script>
   const errorMessage = document.getElementById('error-message');
   const startCameraBtn = document.getElementById('start-camera');
   const fileDrop = document.getElementById('file-drop');
   const qrReaderContainer = document.getElementById('qr-reader');
-  const resultPopup = document.getElementById('result-popup');
   const resultText = document.getElementById('result-text');
 
   let html5QrCode = null;
   let cameraRunning = false;
-  let popupTimeout = null;
 
   function isValidUrl(str) {
     try {
@@ -207,20 +216,11 @@
   }
 
   function showResult(text) {
-    // Clear existing timeout if any
-    if (popupTimeout) clearTimeout(popupTimeout);
-
     if (isValidUrl(text)) {
       resultText.innerHTML = `<a href="${text}" target="_blank" rel="noopener noreferrer">${text}</a>`;
     } else {
       resultText.textContent = text;
     }
-    resultPopup.classList.add('visible');
-
-    // Auto-hide popup after 10 seconds
-    popupTimeout = setTimeout(() => {
-      resultPopup.classList.remove('visible');
-    }, 10000);
   }
 
   async function startCamera() {
@@ -245,7 +245,7 @@
             showResult(qrCodeMessage);
           },
           err => {
-            // Can ignore scan errors or show if desired
+            // ignore scan errors
           }
         );
         cameraRunning = true;
