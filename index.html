@@ -3,30 +3,27 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>QuickScan - QR & Barcode Scanner</title>
+<title>QuickScan</title>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
 :root {
   --primary: #7b5cff;
-  --secondary: #a18aff;
   --bg: #f6f7fb;
-  --text: #333;
-  --card: #ffffff;
 }
 
 body {
   margin: 0;
-  font-family: "Segoe UI", sans-serif;
+  font-family: Arial;
   background: var(--bg);
 }
 
 /* Header */
 header {
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  background: linear-gradient(135deg, #7b5cff, #a18aff);
   color: white;
-  padding: 20px;
+  padding: 15px;
   text-align: center;
   font-weight: bold;
 }
@@ -35,7 +32,6 @@ header {
 .container {
   max-width: 1100px;
   margin: 20px auto;
-  padding: 10px;
 }
 
 .card {
@@ -43,77 +39,62 @@ header {
   background: white;
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
   position: relative;
 }
 
+/* Camera */
 #reader {
   flex: 1;
-  min-height: 320px;
+  min-height: 300px;
   position: relative;
 }
 
-.overlay {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 70%;
-  height: 60%;
-  transform: translate(-50%, -50%);
-  border: 2px dashed rgba(255,255,255,0.7);
-  border-radius: 12px;
-}
-
+/* Controls */
 .controls {
-  width: 350px;
+  width: 320px;
   padding: 20px;
   border-left: 1px solid #eee;
 }
 
+/* Control Row */
+.control-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Buttons */
 button {
-  display: block;
-  width: 100%;
-  margin-top: 10px;
   padding: 10px;
   border: none;
   border-radius: 10px;
+  cursor: pointer;
+}
+
+.main-btn {
+  flex: 1;
   background: var(--primary);
   color: white;
-  cursor: pointer;
 }
 
-button.secondary {
+.icon-btn {
+  width: 45px;
+  height: 45px;
   background: #eee;
-  color: #333;
+  font-size: 18px;
 }
 
+/* Upload */
 .upload {
   border: 2px dashed #ccc;
-  padding: 20px;
-  border-radius: 12px;
+  padding: 15px;
   text-align: center;
+  border-radius: 12px;
+  margin-top: 15px;
   cursor: pointer;
-  margin-top: 15px;
 }
 
-.status {
-  margin-top: 10px;
-  font-size: 13px;
-}
-
-.history {
-  margin-top: 15px;
-  max-height: 200px;
-  overflow-y: auto;
-  font-size: 13px;
-}
-
-.history div {
-  padding: 5px;
-  border-bottom: 1px solid #eee;
-}
-
-/* Result panel */
+/* Result Panel */
 .result-panel {
   position: absolute;
   right: -400px;
@@ -123,47 +104,64 @@ button.secondary {
   background: white;
   padding: 20px;
   transition: 0.4s;
+  z-index: 999;
 }
 
 .result-panel.active {
   right: 0;
 }
 
+/* Mobile Fix */
 @media(max-width:768px){
   .card { flex-direction: column; }
+
   .controls { width: 100%; }
-  .result-panel { width: 100%; }
+
+  .result-panel {
+    width: 100%;
+    height: 60%;
+    bottom: -100%;
+    top: auto;
+    right: 0;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .result-panel.active {
+    bottom: 0;
+  }
 }
 </style>
 </head>
 
 <body>
 
-<header>QuickScan - QR & Barcode Scanner</header>
+<header>QuickScan</header>
 
 <div class="container">
   <div class="card">
 
-    <div id="reader">
-      <div class="overlay"></div>
-    </div>
+    <div id="reader"></div>
 
     <div class="controls">
-      <button id="startBtn">Start Camera</button>
-      <button id="stopBtn" class="secondary">Stop</button>
-      <button id="flashBtn" class="secondary">Flash</button>
-      <button id="soundBtn" class="secondary">🔇 Sound Off</button>
 
-      <div class="upload" tabindex="0" id="uploadBox">
-        Click or Drop Image
+      <!-- ONE LINE CONTROLS -->
+      <div class="control-row">
+        <button id="toggleCamera" class="main-btn">Start Camera</button>
+        <button id="flashBtn" class="icon-btn">🔦</button>
+        <button id="soundBtn" class="icon-btn">🔇</button>
+      </div>
+
+      <div class="upload" id="uploadBox">
+        Upload / Drop Image
         <input type="file" id="fileInput" hidden>
       </div>
 
-      <div class="status" id="status">Idle</div>
+      <div id="status">Idle</div>
+      <div id="history"></div>
 
-      <div class="history" id="history"></div>
     </div>
 
+    <!-- Result Panel -->
     <div class="result-panel" id="resultPanel">
       <h3>Result</h3>
       <div id="resultText"></div>
@@ -176,153 +174,127 @@ button.secondary {
 
 <script>
 let scanner = null;
-let isRunning = false;
-let historyList = [];
+let running = false;
 let flashOn = false;
-let soundEnabled = false; // START MUTED
-let scanLock = false;
-
-const statusEl = document.getElementById("status");
-const resultPanel = document.getElementById("resultPanel");
-const resultText = document.getElementById("resultText");
-const historyEl = document.getElementById("history");
-const soundBtn = document.getElementById("soundBtn");
+let soundOn = false;
+let lock = false;
+let history = [];
 
 const beep = new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
 
-/* URL check */
-function isURL(text) {
-  return /^https?:\/\//i.test(text);
+const toggleBtn = document.getElementById("toggleCamera");
+const resultPanel = document.getElementById("resultPanel");
+const resultText = document.getElementById("resultText");
+
+/* URL */
+function isURL(t){
+  return /^https?:\/\//i.test(t);
 }
 
-/* Show result */
-function showResult(text) {
-  if (scanLock) return;
-  scanLock = true;
+/* Result */
+function showResult(text){
+  if(lock) return;
+  lock = true;
 
-  if (soundEnabled) beep.play();
+  if(soundOn) beep.play();
 
-  if (isURL(text)) {
-    resultText.innerHTML = `<a href="${text}" target="_blank">${text}</a>`;
-  } else {
-    resultText.textContent = text;
-  }
+  resultText.innerHTML = isURL(text)
+    ? `<a href="${text}" target="_blank">${text}</a>`
+    : text;
 
   resultPanel.classList.add("active");
 
-  historyList.unshift(text);
-  renderHistory();
+  history.unshift(text);
 
-  setTimeout(() => {
-    scanLock = false;
-  }, 1500);
+  setTimeout(()=> lock = false, 1500);
 }
 
-/* History */
-function renderHistory() {
-  historyEl.innerHTML = historyList
-    .slice(0,10)
-    .map(i => `<div>${i}</div>`)
-    .join("");
-}
+/* Toggle Camera */
+toggleBtn.onclick = async () => {
+  if(!running){
+    try {
+      scanner = new Html5Qrcode("reader");
 
-/* Start */
-async function startScanner() {
-  if (isRunning) return;
+      const cams = await Html5Qrcode.getCameras();
+      const cam = cams.find(c=>c.label.toLowerCase().includes("back")) || cams[0];
 
-  try {
-    scanner = new Html5Qrcode("reader");
+      await scanner.start(cam.id, { fps:10, qrbox:250 }, showResult);
 
-    const devices = await Html5Qrcode.getCameras();
-    const cam = devices.find(d => d.label.toLowerCase().includes("back")) || devices[0];
+      running = true;
+      toggleBtn.textContent = "Stop Camera";
 
-    await scanner.start(cam.id, { fps: 10, qrbox: 250 },
-      (decoded) => showResult(decoded)
-    );
+    } catch {
+      alert("Camera error");
+    }
+  } else {
+    await scanner.stop();
+    scanner.clear();
 
-    isRunning = true;
-    statusEl.textContent = "Scanning...";
-  } catch (err) {
-    statusEl.textContent = "Camera error";
+    running = false;
+    toggleBtn.textContent = "Start Camera";
   }
-}
-
-/* Stop */
-async function stopScanner() {
-  if (!scanner || !isRunning) return;
-
-  await scanner.stop();
-  scanner.clear();
-  isRunning = false;
-  statusEl.textContent = "Stopped";
-}
+};
 
 /* Flash */
-async function toggleFlash() {
-  if (!scanner) return;
-
+flashBtn.onclick = async ()=>{
+  if(!scanner) return;
   try {
     flashOn = !flashOn;
     await scanner.applyVideoConstraints({
-      advanced: [{ torch: flashOn }]
+      advanced:[{ torch: flashOn }]
     });
   } catch {
     alert("Flash not supported");
   }
-}
+};
+
+/* Sound */
+soundBtn.onclick = ()=>{
+  soundOn = !soundOn;
+  soundBtn.textContent = soundOn ? "🔊" : "🔇";
+};
+
+/* Scan Again */
+scanAgainBtn.onclick = ()=>{
+  resultPanel.classList.remove("active");
+};
 
 /* Upload */
-fileInput.onchange = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+uploadBox.onclick = ()=> fileInput.click();
 
-  try {
+fileInput.onchange = async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+
+  try{
     const html5Qr = new Html5Qrcode("reader");
-    const result = await html5Qr.scanFile(file, true);
-    showResult(result);
+    const res = await html5Qr.scanFile(file,true);
+    showResult(res);
   } catch {
-    statusEl.textContent = "No QR found";
+    alert("No code found");
   }
 };
 
 /* Drag */
-uploadBox.onclick = () => fileInput.click();
-uploadBox.ondragover = e => e.preventDefault();
+uploadBox.ondragover = e=> e.preventDefault();
 
-uploadBox.ondrop = async (e) => {
+uploadBox.ondrop = async e=>{
   e.preventDefault();
   const file = e.dataTransfer.files[0];
 
-  try {
+  try{
     const html5Qr = new Html5Qrcode("reader");
-    const result = await html5Qr.scanFile(file, true);
-    showResult(result);
+    const res = await html5Qr.scanFile(file,true);
+    showResult(res);
   } catch {
-    statusEl.textContent = "Invalid image";
+    alert("Invalid image");
   }
 };
 
 /* Copy */
-copyBtn.onclick = () => {
+copyBtn.onclick = ()=>{
   navigator.clipboard.writeText(resultText.innerText);
 };
-
-/* Scan Again */
-scanAgainBtn.onclick = () => {
-  resultPanel.classList.remove("active");
-};
-
-/* Sound toggle */
-soundBtn.onclick = () => {
-  soundEnabled = !soundEnabled;
-  soundBtn.textContent = soundEnabled ? "🔊 Sound On" : "🔇 Sound Off";
-};
-
-/* Buttons */
-startBtn.onclick = startScanner;
-stopBtn.onclick = stopScanner;
-flashBtn.onclick = toggleFlash;
-
 </script>
 
 </body>
