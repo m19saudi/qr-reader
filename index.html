@@ -114,24 +114,32 @@
     try {
       html5QrCode = new Html5Qrcode("qr-reader");
       const devices = await Html5Qrcode.getCameras();
-      if(devices && devices.length) {
-        const cameraId = devices[0].id;
-        await html5QrCode.start(
-          cameraId,
-          { fps: 10, qrbox: 250 },
-          qrCodeMessage => {
+if (devices && devices.length) {
+    // Find a camera labeled as "back" or "rear"
+    let rearCamera = devices.find(device =>
+        /back|rear|environment/i.test(device.label)
+    );
+
+    // Fallback to the first camera if no rear camera is found
+    const cameraId = rearCamera ? rearCamera.id : devices[0].id;
+
+    await html5QrCode.start(
+        cameraId,
+        { fps: 10, qrbox: 250 },
+        qrCodeMessage => {
             errorMessage.textContent = `Result: ${qrCodeMessage}`;
-          },
-          errorMessage => {
-            // Optional: console.log("Scan error", errorMessage);
-          }
-        );
-        cameraRunning = true;
-        startCameraBtn.textContent = "Stop Camera";
-        errorMessage.textContent = "Camera started. Point to a QR code.";
-      } else {
-        errorMessage.textContent = "No cameras found.";
-      }
+        },
+        errorMessage => {
+            // scanning errors
+        }
+    );
+
+    cameraRunning = true;
+    startCameraBtn.textContent = "Stop Camera";
+    errorMessage.textContent = "Camera started. Point to a QR code.";
+} else {
+    errorMessage.textContent = "No cameras found.";
+}
     } catch(err) {
       errorMessage.textContent = "Camera error: " + err.message;
     }
